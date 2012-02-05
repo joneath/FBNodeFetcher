@@ -11,7 +11,7 @@
 , "licenses"      : ["MIT"]
 , "dependencies"  : { "request" : "2.9.100"
                     , "journey": "0.4.0-pre-3"
-                    , "priority-queue": "git://github.com/augustohp/Priority-Queue-NodeJS.git#master"
+                    , "priority-queue": "git://github.com/joneath/Priority-Queue-NodeJS.git"
                     }
 , "main"          : "src/app"
 }
