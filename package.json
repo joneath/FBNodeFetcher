@@ -1,0 +1,17 @@
+{
+  "name"          : "FBNodeFetcher"
+, "version"       : "0.1.0"
+, "description"   : "FBNodeFetcher is a Node.js app to handle fetching many different graph nodes asynchronously."
+, "homepage"      : [ "https://github.com/joneath/FBNodeFetcher"]
+, "repository"    : { "type" : "git"
+                    , "url"  : "https://github.com/joneath/FBNodeFetcher.git"
+                    }
+, "keywords"      : ["facebook", "data", "background"]
+, "author"        : "Jonathan Eatherly <jontahan.eatherly@gmail.com>"
+, "licenses"      : ["MIT"]
+, "dependencies"  : { "request" : "2.9.100"
+                    , "journey": "0.4.0-pre-3"
+                    , "priority-queue": "git://github.com/augustohp/Priority-Queue-NodeJS.git#master"
+                    }
+, "main"          : "src/app"
+}
