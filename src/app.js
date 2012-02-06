@@ -8,11 +8,22 @@ var http = require('http'),
   var fbFetcher = new FBNodeFetcher();
 
   router.map(function () {
-    router.post('/fetch').bind(function (req, res, data, data2) {
+    router.post('/fetch').bind(function (req, res, data) {
       if (data.nodes) {
         fbFetcher.fetch(data.nodes, data.callbackUrl);
       }
-      res.send('');
+      res.send("");
+    });
+
+    router.post('/ratchet').bind(function (req, res, data) {
+      // data = {
+      //   direction: "up",
+      //   queue: "process",
+      //   delta: 5
+      // };
+
+      fbFetcher.ratchet(data);
+      res.send("");
     });
   });
 

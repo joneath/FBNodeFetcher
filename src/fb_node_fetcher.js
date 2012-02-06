@@ -5,19 +5,26 @@ var request = require('request'),
 (function() {
   var FBNodeFetcher = function(opts) {
     var self = { },
-        jobQueue = new PriorityQueue(),
-        activeJobs = 0,
-        activeJobLimit,
-        jobsStopped = false,
-        jobsRunning = false,
-        baseUri = "https://graph.facebook.com/";
+        fetchJobQueue = new PriorityQueue(),
+        processJobQueue = new PriorityQueue(),
+        activeFetchJobs = 0,
+        activeFetchJobLimit,
+        activeProcessJobs = 0,
+        activeProcessJobLimit,
+        fetchJobsStopped = false,
+        fetchJobsRunning = false,
+        processJobsStopped = false,
+        processJobsRunning = false,
+        graphUri = "https://graph.facebook.com/";
 
     opts = opts || { };
 
     (function(opts) {
       self.callbackUrl = opts.callbackUrl;
-      self.priority = opts.priority || 25;
-      activeJobLimit = opts.activeJobLimit || 100;
+      self.fetchPriority = opts.priority || 25;
+      self.processPriority = opts.priority || 25;
+      activeFetchJobLimit = opts.activeFetchJobLimit || 100;
+      activeProcessJobLimit = opts.activeProcessJobLimit || 100;
     }).call(this, opts);
 
     var first = true;
@@ -35,63 +42,179 @@ var request = require('request'),
       }
 
       _(nodes).each(function(node) {
-        self.buildJob(node);
+        self.buildFetchJob(node);
       });
-      self.startJobs();
+
+      self.startFetchJobs();
+      self.startProcessJobs();
     };
 
-    self.startJobs = function() {
-      jobsStopped = false;
-      if (!jobsRunning) {
-        jobsRunning = true;
-        while(activeJobs < activeJobLimit && !jobsStopped) {
-          var job = jobQueue.pop();
+    self.ratchet = function(data) {
+      var delta;
+
+      data = self.processJSON(data);
+      delta = data.delta || Math.round(activeFetchJobLimit / 10);
+      delta = data.direction === "up" ? delta : -delta;
+
+      if (data.queue === "fetch") {
+        activeFetchJobLimit += delta;
+        activeFetchJobLimit = Math.abs(activeFetchJobLimit);
+
+      } else if (data.queue === "process") {
+        activeProcessJobLimit += delta;
+        activeProcessJobLimit = Math.abs(activeProcessJobLimit);
+      }
+    };
+
+    self.startFetchJobs = function() {
+      fetchJobsStopped = false;
+      if (!fetchJobsRunning) {
+        fetchJobsRunning = true;
+        while(activeFetchJobs < activeFetchJobLimit && !fetchJobsStopped) {
+          var job = fetchJobQueue.pop();
           if (job) {
-            self.runJob(job);
+            self.runFetchJob(job);
           } else {
-            self.stopJobs();
+            self.stopFetchJobs();
           }
         }
-        if (!jobsStopped) {
+        if (!fetchJobsStopped) {
           setTimeout(function() {
-            jobsRunning = false;
-            self.startJobs();
+            fetchJobsRunning = false;
+            self.startFetchJobs();
           }, 50);
         }
       }
     };
 
-    self.stopJobs = function() {
-      jobsStopped = true;
-      jobsRunning = false;
-      console.log("Total time: " + (Date.now() - start) / 1000);
+    self.startProcessJobs = function() {
+      processJobsStopped = false;
+      if (!processJobsRunning) {
+        processJobsRunning = true;
+        while(activeProcessJobs < activeProcessJobLimit && !processJobsStopped) {
+          var job = processJobQueue.pop();
+          if (job) {
+            self.runProcessJob(job);
+          } else {
+            self.stopProcessJobs();
+          }
+        }
+        setTimeout(function() {
+          processJobsRunning = false;
+          self.startProcessJobs();
+        }, 50);
+      }
     };
 
-    self.buildJob = function(node, priority) {
-      var uri = self.buildGraphUri(node),
-          callbackUrl = node.callbackUrl || self.callbackUrl;
+    self.stopFetchJobs = function() {
+      fetchJobsStopped = true;
+      fetchJobsRunning = false;
+    };
 
-      priority = priority || self.priority;
+    self.stopProcessJobs = function() {
+      processJobsStopped = true;
+      processJobsRunning = false;
+    };
+
+    self.buildFetchJob = function(node, priority) {
+      var uri = self.buildGraphUri(node),
+          callbackUrl = node.callbackUrl || self.callbackUrl,
+          connection = node.connection || "",
+          pagesBack = node.pages_back || 1;
+          latest = node.latest;
+
+      priority = priority || self.fetchPriority;
 
       var job = {
+        priority: priority,
+        graph_id: node.graph_id,
+        access_token: node.access_token,
+        connection: connection,
         uri: uri,
-        callbackUrl: callbackUrl
+        callbackUrl: callbackUrl,
+        pagesBack: pagesBack,
+        currentPage: 1,
+        latest: latest
       };
-      jobQueue.push(job, priority);
+
+      fetchJobQueue.push(job, priority);
     };
 
-    self.runJob = function(job) {
+    self.buildProcessJob = function(fetchJob) {
+      var job = {
+        priority: fetchJob.priority,
+        callbackUrl: fetchJob.callbackUrl,
+        data: fetchJob.data
+      };
+
+      processJobQueue.push(job, job.priority);
+    };
+
+    self.processData = function(job, data) {
+      if (job.data && job.data.data) {
+        _(data.data).each(function(node) {
+          job.data.data.push(node);
+        });
+      } else {
+        job.data = data;
+      }
+
+      if (job.currentPage < job.pagesBack) {
+        job.currentPage += 1;
+        job.uri = data.paging.next;
+        self.runFetchJob(job);
+      } else {
+        self.buildProcessJob(job);
+      }
+    };
+
+    self.runFetchJob = function(job) {
       var currentJob = job;
-      activeJobs += 1;
+      activeFetchJobs += 1;
       request(job.uri, function (error, response, body) {
-        activeJobs -= 1;
+        activeFetchJobs -= 1;
         var data = self.processJSON(body);
-        if (!data.error){
-          console.log("Total time: " + (Date.now() - start) / 1000);
-          request.post({url: job.callbackUrl, data: body}, function (e, r, body) { });
+        if (response.statusCode >= 200 && response.statusCode < 400 && (!error || !data.error)){
+          self.processData(job, data);
         } else {
-          console.log("error, re-queuing");
-          jobQueue.push(currentJob, self.priority);
+          console.log("error fetching, re-queuing");
+          fetchJobQueue.push(currentJob, self.fetchPriority);
+        }
+      });
+    };
+
+    self.runProcessJob = function(job) {
+      var currentJob = job;
+      activeProcessJobs += 1;
+      console.log(job.data);
+      request.post({url: job.callbackUrl, json: job.data}, function (error, response, body) {
+        activeProcessJobs -= 1;
+
+        var data = self.processJSON(body);
+        if (error || data.error){
+          console.log("error processing, re-queuing");
+
+          self.processPriority += 1;
+          processJobQueue.push(currentJob, self.processPriority);
+        }
+        else if (response.statusCode >= 400) {
+          console.log("Posting to " + currentJob.callbackUrl + " resulted in the following status code: " + response.statusCode);
+
+          if (response.statusCode == 422) {
+            console.log("Job will now be dropped");
+            console.log(JSON.stringify(currentJob));
+          }
+          else {
+            console.log("Job will be re-queued");
+
+            self.processPriority += 1;
+            processJobQueue.push(currentJob, self.processPriority);
+          }
+        }
+        else {
+          if (self.processPriority > 1){
+            self.processPriority -= 1;
+          }
         }
       });
     };
@@ -104,7 +227,7 @@ var request = require('request'),
     };
 
     self.buildGraphUri = function(node) {
-      var uri = baseUri + node.graph_id;
+      var uri = graphUri + node.graph_id;
       if (node.connection) {
         uri += "/" + node.connection;
       }
