@@ -31,7 +31,7 @@ Send a POST request to http://localhost:1337/fetch with `callbackUrl` and `nodes
           access_token: "1234567890_ABCDEF",
           priority: 1,
           pages_back: 1,
-          latest: ""
+          until: ""
         }
       }
     ]
