@@ -43,7 +43,7 @@ Send a POST request to http://localhost:1337/fetch with `callbackUrl` and `nodes
   * `access_token` - The graph ID to fetch
   * `priority` - The priority this node will be fetch. Lower is higher priority.
   * `pages_back` *(optional)* - How many pages to retrive. This will run synchronously and return the entire collection.
-  * `latest` *(optional)* - Fetches until passed graph ID is found. This will run synchronously and return the entire collection.
+  * `until` *(optional, graph_id)* - Fetches until graph ID is found. This will run synchronously and return the entire collection.
 
 ### Fetch Response (JSON Object)
 `FBNodeFetcher.fetch()` always returns the same formatted JSON as the [Facebook Open Graph](https://developers.facebook.com/docs/reference/api/). The only minor difference is when using the `pages_back` and `latest_id` options, where the returned JSON is a much larger aggregate of all the pages.

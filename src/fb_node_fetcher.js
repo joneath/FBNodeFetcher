@@ -121,7 +121,7 @@ var request = require('request'),
           callbackUrl = node.callbackUrl || self.callbackUrl,
           connection = node.connection || "",
           pagesBack = node.pages_back || 1;
-          latest = node.latest;
+          until = node.until;
 
       priority = node.priority || self.fetchPriority;
 
@@ -134,7 +134,7 @@ var request = require('request'),
         callbackUrl: callbackUrl,
         pagesBack: pagesBack,
         currentPage: 1,
-        latest: latest
+        until: until
       };
 
       fetchJobQueue.push(job, priority);
@@ -160,16 +160,16 @@ var request = require('request'),
         job.data = data;
       }
 
-      if (job.latest) {
+      if (job.until) {
         _(data.data).each(function(node, i) {
-          if (node.id === job.latest) {
+          if (node.id === job.until) {
             data.data = data.data.slice(0, i);
             found = true;
           }
         });
       }
 
-      if (job.currentPage < job.pagesBack || (job.latest && !found)) {
+      if (job.currentPage < job.pagesBack || (job.until && !found)) {
         job.currentPage += 1;
         job.uri = data.paging.next;
         self.runFetchJob(job);
