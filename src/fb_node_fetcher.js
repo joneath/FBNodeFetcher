@@ -123,7 +123,7 @@ var request = require('request'),
           pagesBack = node.pages_back || 1;
           latest = node.latest;
 
-      priority = priority || self.fetchPriority;
+      priority = node.priority || self.fetchPriority;
 
       var job = {
         priority: priority,

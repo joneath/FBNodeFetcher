@@ -16,12 +16,6 @@ var http = require('http'),
     });
 
     router.post('/ratchet').bind(function (req, res, data) {
-      // data = {
-      //   direction: "up",
-      //   queue: "process",
-      //   delta: 5
-      // };
-
       fbFetcher.ratchet(data);
       res.send("");
     });
