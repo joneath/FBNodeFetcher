@@ -13,5 +13,6 @@
                     , "journey": "0.4.0-pre-3"
                     , "priority-queue": "git://github.com/joneath/Priority-Queue-NodeJS.git"
                     }
-, "main"          : "src/app"
+, "bin"           : "bin/fb-node-fetcher"
+, "main"          : "src"
 }
