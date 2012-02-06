@@ -151,6 +151,7 @@ var request = require('request'),
     };
 
     self.processData = function(job, data) {
+      var found = false;
       if (job.data && job.data.data) {
         _(data.data).each(function(node) {
           job.data.data.push(node);
@@ -159,7 +160,16 @@ var request = require('request'),
         job.data = data;
       }
 
-      if (job.currentPage < job.pagesBack) {
+      if (job.latest) {
+        _(data.data).each(function(node, i) {
+          if (node.id === job.latest) {
+            data.data = data.data.slice(0, i);
+            found = true;
+          }
+        });
+      }
+
+      if (job.currentPage < job.pagesBack || (job.latest && !found)) {
         job.currentPage += 1;
         job.uri = data.paging.next;
         self.runFetchJob(job);
@@ -186,7 +196,6 @@ var request = require('request'),
     self.runProcessJob = function(job) {
       var currentJob = job;
       activeProcessJobs += 1;
-      console.log(job.data);
       request.post({url: job.callbackUrl, json: job.data}, function (error, response, body) {
         activeProcessJobs -= 1;
 
