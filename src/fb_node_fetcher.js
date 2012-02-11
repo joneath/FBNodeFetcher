@@ -1,3 +1,7 @@
+// Created by Jonathan Eatherly, (https://github.com/joneath)
+// MIT license
+// Version 0.1
+
 var request = require('request'),
     PriorityQueue = require('priority-queue'),
     _ = require("../vender/underscore-min");
